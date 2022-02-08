@@ -42,7 +42,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn := WebSocketConnection{ws}
-	clients[conn] = ""
+	clients[conn] = models.Hand{}
 
 	go ListenForWs(&conn)
 }
