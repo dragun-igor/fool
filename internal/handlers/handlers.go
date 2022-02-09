@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/dragun-igor/fool_card_game/internal/game"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -13,9 +14,12 @@ type WebSocketConnection struct {
 }
 
 type WsJsonResponse struct {
-	Action         string      `json:"action"`
-	Message        interface{} `json:"message"`
-	ConnectedUsers []string    `json:"connected_users"`
+	Action         string    `json:"action"`
+	Hand           game.Hand `json:"hand"`
+	Table          string    `json:"table"`
+	Deck           bool      `json:"deck"`
+	Trash          bool      `json:"trash"`
+	ConnectedUsers []string  `json:"connected_users"`
 }
 
 type WsPayload struct {
@@ -25,8 +29,13 @@ type WsPayload struct {
 	Conn     WebSocketConnection `json:"-"`
 }
 
+type ClientData struct {
+	Username string
+	Hand     game.Hand
+}
+
 var (
-	clients           = make(map[WebSocketConnection]models.Hand)
+	clients           = make(map[WebSocketConnection]*ClientData)
 	wsChan            = make(chan WsPayload)
 	upgradeConnection = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -42,7 +51,11 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn := WebSocketConnection{ws}
-	clients[conn] = models.Hand{}
+	hand := &ClientData{
+		Username: "",
+		Hand:     make(game.Hand, 0, 18),
+	}
+	clients[conn] = hand
 
 	go ListenForWs(&conn)
 }
@@ -50,7 +63,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 func ListenForWs(conn *WebSocketConnection) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("err", fmt.Sprintf("#{r}"))
+			log.Println("err", fmt.Sprintf("%v", r))
 		}
 	}()
 
@@ -68,13 +81,15 @@ func ListenForWs(conn *WebSocketConnection) {
 }
 
 func ListenToWsChannel() {
-	response := WsJsonResponse{}
-
+	deck := game.NewDeck()
+	response := WsJsonResponse{
+		Deck: true,
+	}
 	for {
 		e := <-wsChan
 		switch e.Action {
 		case "username":
-			clients[e.Conn] = e.Username
+			clients[e.Conn].Username = e.Username
 			users := getUserList()
 			response.Action = "list_users"
 			response.ConnectedUsers = users
@@ -85,29 +100,54 @@ func ListenToWsChannel() {
 			response.Action = "list_users"
 			response.ConnectedUsers = users
 			broadcastToAll(response)
-		case "":
+		case "start_game":
+			response.Action = "hand"
+			response.Table = ""
+			for client := range clients {
+				hand := clients[client].Hand
+				for n := 6 - len(hand); n > 0; n-- {
+					game.BringToHand(hand, deck.Get())
+				}
+				response.Hand = hand
+				broadcastToClient(client, response)
+			}
+		case "break":
+			response.Action = "hand"
+			response.Table = ""
+			for client := range clients {
+				hand := clients[client].Hand
+				for n := 6 - len(hand); n > 0; n-- {
+					game.BringToHand(hand, deck.Get())
+				}
+				response.Hand = hand
+				broadcastToClient(client, response)
+			}
 		}
 	}
 }
 
 func getUserList() []string {
 	var userList []string
-	for _, x := range clients {
-		if x != "" {
-			userList = append(userList, x)
+	for key := range clients {
+		if clients[key].Username != "" {
+			userList = append(userList, clients[key].Username)
 		}
 	}
 	sort.Strings(userList)
 	return userList
 }
 
+func broadcastToClient(client WebSocketConnection, response WsJsonResponse) {
+	err := client.WriteJSON(response)
+	if err != nil {
+		log.Println("websocket error")
+		_ = client.Close()
+		delete(clients, client)
+	}
+}
+
 func broadcastToAll(response WsJsonResponse) {
 	for client := range clients {
-		err := client.WriteJSON(response)
-		if err != nil {
-			log.Println("websocket error")
-			_ = client.Close()
-			delete(clients, client)
-		}
+		broadcastToClient(client, response)
 	}
 }

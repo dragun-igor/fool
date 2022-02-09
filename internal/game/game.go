@@ -1,5 +1,10 @@
 package game
 
+import (
+	"math/rand"
+	"time"
+)
+
 type CardMarks struct {
 	Denomination string `json:"denomination"`
 	Suit         string `json:"suit"`
@@ -23,8 +28,33 @@ type Deck struct {
 }
 
 var suits = []string{"spades", "hearts", "diamonds", "clubs"}
+var denominations = []string{"six", "seven", "eight", "nine", "ten", "jack", "queen", "king", "ace"}
 
-func (d *Deck) CardDistribution() CardMarks {
+func NewDeck() *Deck {
+	rand.Seed(time.Now().Unix())
+	deck := Deck{
+		PrimarySuit: suits[rand.Intn(4)],
+	}
+	for _, suit := range suits {
+		for _, denomination := range denominations {
+			deck.AddCard(denomination, suit)
+		}
+	}
+	return &deck
+}
+
+func (d *Deck) AddCard(denomination string, suit string) {
+	d.FirstToken = &DeckToken{
+		Next: d.FirstToken,
+		Card: CardMarks{
+			Denomination: denomination,
+			Suit:         suit,
+		},
+	}
+	d.Length++
+}
+
+func (d *Deck) Get() CardMarks {
 	res := d.FirstToken.Card
 	d.FirstToken = d.FirstToken.Next
 	d.Length--
