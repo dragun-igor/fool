@@ -15,6 +15,7 @@ type WebSocketConnection struct {
 
 type WsJsonResponse struct {
 	Action         string    `json:"action"`
+	Message        string    `json:"message"'`
 	Hand           game.Hand `json:"hand"`
 	Table          string    `json:"table"`
 	Deck           bool      `json:"deck"`
@@ -25,7 +26,7 @@ type WsJsonResponse struct {
 type WsPayload struct {
 	Action   string              `json:"action"`
 	Username string              `json:"username"`
-	Message  interface{}         `json:"message"`
+	Message  string              `json:"message"`
 	Conn     WebSocketConnection `json:"-"`
 }
 
@@ -88,17 +89,16 @@ func ListenToWsChannel() {
 	for {
 		e := <-wsChan
 		switch e.Action {
-		case "username":
-			clients[e.Conn].Username = e.Username
-			users := getUserList()
-			response.Action = "list_users"
-			response.ConnectedUsers = users
+		case "users":
+			response = getUserList(response)
 			broadcastToAll(response)
-		case "left":
+		case "add_user":
+			clients[e.Conn].Username = e.Username
+			response = getUserList(response)
+			broadcastToAll(response)
+		case "delete_user":
 			delete(clients, e.Conn)
-			users := getUserList()
-			response.Action = "list_users"
-			response.ConnectedUsers = users
+			response = getUserList(response)
 			broadcastToAll(response)
 		case "start_game":
 			response.Action = "hand"
@@ -106,7 +106,11 @@ func ListenToWsChannel() {
 			for client := range clients {
 				hand := clients[client].Hand
 				for n := 6 - len(hand); n > 0; n-- {
-					game.BringToHand(hand, deck.Get())
+					if deck.Length != 0 {
+						hand = game.BringToHand(hand, deck.Get())
+					} else {
+						break
+					}
 				}
 				response.Hand = hand
 				broadcastToClient(client, response)
@@ -122,11 +126,15 @@ func ListenToWsChannel() {
 				response.Hand = hand
 				broadcastToClient(client, response)
 			}
+		case "broadcast":
+			response.Action = "broadcast"
+			response.Message = fmt.Sprintf("<strong>%s</strong>: %s", e.Username, e.Message)
+			broadcastToAll(response)
 		}
 	}
 }
 
-func getUserList() []string {
+func getUserList(response WsJsonResponse) WsJsonResponse {
 	var userList []string
 	for key := range clients {
 		if clients[key].Username != "" {
@@ -134,7 +142,9 @@ func getUserList() []string {
 		}
 	}
 	sort.Strings(userList)
-	return userList
+	response.Action = "list_users"
+	response.ConnectedUsers = userList
+	return response
 }
 
 func broadcastToClient(client WebSocketConnection, response WsJsonResponse) {
@@ -149,5 +159,18 @@ func broadcastToClient(client WebSocketConnection, response WsJsonResponse) {
 func broadcastToAll(response WsJsonResponse) {
 	for client := range clients {
 		broadcastToClient(client, response)
+	}
+}
+
+func renderPage(w http.ResponseWriter, r *http.Request, page string) error {
+	http.ServeFile(w, r, page)
+	return nil
+}
+
+// Home renders the home page
+func Home(w http.ResponseWriter, r *http.Request) {
+	err := renderPage(w, r, "./html/home.html")
+	if err != nil {
+		log.Println(err)
 	}
 }

@@ -5,26 +5,22 @@ import (
 	"time"
 )
 
-type CardMarks struct {
+type CardItem struct {
 	Denomination string `json:"denomination"`
 	Suit         string `json:"suit"`
 }
 
-type Hand []CardMarks
+type Hand []CardItem
 
-type PutCard struct {
-	Card CardMarks `json:"card"`
-}
-
-type DeckToken struct {
-	Next *DeckToken
-	Card CardMarks
+type DeckItem struct {
+	Next *DeckItem
+	Card CardItem
 }
 
 type Deck struct {
-	FirstToken  *DeckToken
-	Length      int
-	PrimarySuit string
+	FirstToken *DeckItem
+	Length     int
+	TrumpSuit  string
 }
 
 var suits = []string{"spades", "hearts", "diamonds", "clubs"}
@@ -33,7 +29,7 @@ var denominations = []string{"six", "seven", "eight", "nine", "ten", "jack", "qu
 func NewDeck() *Deck {
 	rand.Seed(time.Now().Unix())
 	deck := Deck{
-		PrimarySuit: suits[rand.Intn(4)],
+		TrumpSuit: suits[rand.Intn(4)],
 	}
 	for _, suit := range suits {
 		for _, denomination := range denominations {
@@ -44,9 +40,9 @@ func NewDeck() *Deck {
 }
 
 func (d *Deck) AddCard(denomination string, suit string) {
-	d.FirstToken = &DeckToken{
+	d.FirstToken = &DeckItem{
 		Next: d.FirstToken,
-		Card: CardMarks{
+		Card: CardItem{
 			Denomination: denomination,
 			Suit:         suit,
 		},
@@ -54,18 +50,18 @@ func (d *Deck) AddCard(denomination string, suit string) {
 	d.Length++
 }
 
-func (d *Deck) Get() CardMarks {
+func (d *Deck) Get() CardItem {
 	res := d.FirstToken.Card
 	d.FirstToken = d.FirstToken.Next
 	d.Length--
 	return res
 }
 
-func BringToHand(hand Hand, cards ...CardMarks) Hand {
+func BringToHand(hand Hand, cards ...CardItem) Hand {
 	return append(hand, cards...)
 }
 
-func RemoveFromHand(hand Hand, card CardMarks) Hand {
+func RemoveFromHand(hand Hand, card CardItem) Hand {
 	for i := range hand {
 		if hand[i] == card {
 			hand = append(hand[:i], hand[i+1:]...)
