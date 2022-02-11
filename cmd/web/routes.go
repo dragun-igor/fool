@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/bmizerany/pat"
-	"github.com/dragun-igor/fool_card_game/internal/handlers"
+	"github.com/dragun-igor/fool/internal/handlers"
 	"net/http"
 )
 

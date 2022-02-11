@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/dragun-igor/fool_card_game/internal/game"
+	"github.com/dragun-igor/fool/internal/game"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"

@@ -1,4 +1,4 @@
-module github.com/dragun-igor/fool_card_game
+module github.com/dragun-igor/fool
 
 go 1.17
 
