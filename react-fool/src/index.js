@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { render } from 'react-dom';
-import {DatePicker, message, Menu, Input, Button, Card, Row} from 'antd';
+import {DatePicker, message, Menu, Input, Button, Card, Row, Image} from 'antd';
 import 'antd/dist/antd.css';
 import './index.css';
 import ss from './4.png'
@@ -18,9 +18,12 @@ const App = () => {
                     style={{ width: 300 }}
                     defaultSelectedKeys={['1']}
                     defaultOpenKeys={['sub1']}
-                    theme="dark"
+                    theme="light"
                     mode="inline"
                 >
+                    <Menu.Item key="10">Game 1</Menu.Item>
+                    <Menu.Item key="11">Game 2</Menu.Item>
+                    <Menu.Item key="12">Game 3</Menu.Item>
                     <Menu.SubMenu key="sub1" title={
                         <span>
                             <span>Menu</span>
@@ -31,6 +34,8 @@ const App = () => {
                             <Menu.Item key="2">2</Menu.Item>
                             <Menu.Item key="3">3</Menu.Item>
                             <Menu.Item key="4">4</Menu.Item>
+                        </Menu.ItemGroup>
+                        <Menu.ItemGroup key="g2" title="Select Game 2">
                             <Menu.Item key="5">5</Menu.Item>
                             <Menu.Item key="6">6</Menu.Item>
                             <Menu.Item key="7">7</Menu.Item>
@@ -67,7 +72,7 @@ const App = () => {
                             }
                             style={{
                                 width: 120,
-                                height:180,
+                                height: 180,
                                 borderColor: 'rgba(255, 215, 0)',
                                 borderWidth: 2,
                                 borderRadius: 10
@@ -107,16 +112,17 @@ const App = () => {
                                 }
                                 style={{
                                     width: 120,
-                                    height:180,
+                                    height: 180,
                                     borderColor: 'rgba(255, 215, 0)',
                                     borderWidth: 2,
                                     borderRadius: 10
                                 }}
                             />
-                            <Button type='ghost' style={{
+                            <Button type='ghost' icon={ss} style={{
                                 width: 120,
                                 height: 180,
                             }}> </Button>
+                            <Image alt="example" src={ss} />
                             <Card
                                 hoverable
                                 cover={
@@ -127,7 +133,7 @@ const App = () => {
                                 }
                                 style={{
                                     width: 120,
-                                    height:180,
+                                    height: 180,
                                     borderColor: 'rgba(255, 215, 0)',
                                     borderWidth: 2,
                                     borderRadius: 10
@@ -143,7 +149,7 @@ const App = () => {
                                 }
                                 style={{
                                     width: 120,
-                                    height:180,
+                                    height: 180,
                                     borderColor: 'rgba(255, 215, 0)',
                                     borderWidth: 2,
                                     borderRadius: 10
@@ -159,7 +165,7 @@ const App = () => {
                                 }
                                 style={{
                                     width: 120,
-                                    height:180,
+                                    height: 180,
                                     borderRadius: 10
                                 }}
                             />
@@ -173,7 +179,7 @@ const App = () => {
                                 }
                                 style={{
                                     width: 120,
-                                    height:180,
+                                    height: 180,
                                     borderColor: 'rgba(255, 215, 0)',
                                     borderWidth: 2,
                                     borderRadius: 10
