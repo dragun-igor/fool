@@ -8,6 +8,8 @@ import (
 type CardItem struct {
 	Denomination string `json:"denomination"`
 	Suit         string `json:"suit"`
+	TrumpSuit    bool   `json:"trump_suit"`
+	Selected     bool   `json:"selected"`
 }
 
 type Hand []CardItem
@@ -33,18 +35,19 @@ func NewDeck() *Deck {
 	}
 	for _, suit := range suits {
 		for _, denomination := range denominations {
-			deck.AddCard(denomination, suit)
+			deck.AddCard(denomination, suit, deck.TrumpSuit == suit)
 		}
 	}
 	return &deck
 }
 
-func (d *Deck) AddCard(denomination string, suit string) {
+func (d *Deck) AddCard(denomination string, suit string, trumpSuit bool) {
 	d.FirstToken = &DeckItem{
 		Next: d.FirstToken,
 		Card: CardItem{
 			Denomination: denomination,
 			Suit:         suit,
+			TrumpSuit:    trumpSuit,
 		},
 	}
 	d.Length++

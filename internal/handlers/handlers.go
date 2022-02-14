@@ -17,7 +17,7 @@ type WsJsonResponse struct {
 	Action         string    `json:"action"`
 	Message        string    `json:"message"'`
 	Hand           game.Hand `json:"hand"`
-	Table          string    `json:"table"`
+	Table          game.Hand `json:"table"`
 	Deck           bool      `json:"deck"`
 	Trash          bool      `json:"trash"`
 	ConnectedUsers []string  `json:"connected_users"`
@@ -27,12 +27,14 @@ type WsPayload struct {
 	Action   string              `json:"action"`
 	Username string              `json:"username"`
 	Message  string              `json:"message"`
+	Card     game.CardItem       `json:"card"`
 	Conn     WebSocketConnection `json:"-"`
 }
 
 type ClientData struct {
 	Username string
 	Hand     game.Hand
+	Table    game.Hand
 }
 
 var (
@@ -54,7 +56,8 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	conn := WebSocketConnection{ws}
 	hand := &ClientData{
 		Username: "",
-		Hand:     make(game.Hand, 0, 18),
+		Hand:     make(game.Hand, 0, 36),
+		Table:    make(game.Hand, 0, 12),
 	}
 	clients[conn] = hand
 
@@ -95,6 +98,7 @@ func ListenToWsChannel() {
 		case "add_user":
 			clients[e.Conn].Username = e.Username
 			response = getUserList(response)
+			fmt.Println(response)
 			broadcastToAll(response)
 		case "delete_user":
 			delete(clients, e.Conn)
@@ -102,7 +106,6 @@ func ListenToWsChannel() {
 			broadcastToAll(response)
 		case "start_game":
 			response.Action = "hand"
-			response.Table = ""
 			for client := range clients {
 				hand := clients[client].Hand
 				for n := 6 - len(hand); n > 0; n-- {
@@ -112,20 +115,21 @@ func ListenToWsChannel() {
 						break
 					}
 				}
+				fmt.Println(hand)
+				fmt.Println(client)
+				clients[client].Hand = hand
 				response.Hand = hand
 				broadcastToClient(client, response)
 			}
-		case "break":
+		case "card_selected":
 			response.Action = "hand"
-			response.Table = ""
-			for client := range clients {
-				hand := clients[client].Hand
-				for n := 6 - len(hand); n > 0; n-- {
-					game.BringToHand(hand, deck.Get())
+			for i := range clients[e.Conn].Hand {
+				if clients[e.Conn].Hand[i].Denomination == e.Card.Denomination && clients[e.Conn].Hand[i].Suit == e.Card.Suit {
+					clients[e.Conn].Hand[i] = e.Card
 				}
-				response.Hand = hand
-				broadcastToClient(client, response)
 			}
+			broadcastToClient(e.Conn, response)
+
 		case "broadcast":
 			response.Action = "broadcast"
 			response.Message = fmt.Sprintf("<strong>%s</strong>: %s", e.Username, e.Message)
