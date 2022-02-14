@@ -6,13 +6,12 @@ import (
 )
 
 type CardItem struct {
+	ID           int    `json:"id"`
 	Denomination string `json:"denomination"`
 	Suit         string `json:"suit"`
 	TrumpSuit    bool   `json:"trump_suit"`
 	Selected     bool   `json:"selected"`
 }
-
-type Hand []CardItem
 
 type DeckItem struct {
 	Next *DeckItem
@@ -22,33 +21,54 @@ type DeckItem struct {
 type Deck struct {
 	FirstToken *DeckItem
 	Length     int
-	TrumpSuit  string
+}
+
+type Pair struct {
+	ID         int      `json:"id"`
+	FirstCard  CardItem `json:"first_card"`
+	SecondCard CardItem `json:"second_card"`
+}
+
+type Table struct {
+	Pairs  []Pair `json:"pairs"`
+	Putted int    `json:"-"`
+	Cover  int    `json:"-"`
 }
 
 var suits = []string{"spades", "hearts", "diamonds", "clubs"}
 var denominations = []string{"six", "seven", "eight", "nine", "ten", "jack", "queen", "king", "ace"}
 
 func NewDeck() *Deck {
+	cards := make([]CardItem, 0, 36)
 	rand.Seed(time.Now().Unix())
-	deck := Deck{
-		TrumpSuit: suits[rand.Intn(4)],
-	}
+	trumpSuit := suits[rand.Intn(4)]
+	deck := Deck{}
+	id := 0
 	for _, suit := range suits {
 		for _, denomination := range denominations {
-			deck.AddCard(denomination, suit, deck.TrumpSuit == suit)
+			id++
+			cards = append(cards, CardItem{
+				ID:           id,
+				Denomination: denomination,
+				Suit:         suit,
+				TrumpSuit:    trumpSuit == suit,
+				Selected:     false,
+			})
 		}
+	}
+	for i := 0; i < 50; i++ {
+		rand.Shuffle(36, func(i, j int) { cards[i], cards[j] = cards[j], cards[i] })
+	}
+	for _, v := range cards {
+		deck.AddCard(v)
 	}
 	return &deck
 }
 
-func (d *Deck) AddCard(denomination string, suit string, trumpSuit bool) {
+func (d *Deck) AddCard(card CardItem) {
 	d.FirstToken = &DeckItem{
 		Next: d.FirstToken,
-		Card: CardItem{
-			Denomination: denomination,
-			Suit:         suit,
-			TrumpSuit:    trumpSuit,
-		},
+		Card: card,
 	}
 	d.Length++
 }
@@ -60,16 +80,24 @@ func (d *Deck) Get() CardItem {
 	return res
 }
 
-func BringToHand(hand Hand, cards ...CardItem) Hand {
-	return append(hand, cards...)
+func (t *Table) PutCard(card CardItem) {
+	card.Selected = false
+	t.Pairs = append(t.Pairs, Pair{
+		ID:        len(t.Pairs) + 1,
+		FirstCard: card,
+		SecondCard: CardItem{
+			ID:           100,
+			Denomination: "EXAMPLE",
+			Suit:         "EXAMPLE",
+		},
+	})
+	t.Putted++
 }
 
-func RemoveFromHand(hand Hand, card CardItem) Hand {
-	for i := range hand {
-		if hand[i] == card {
-			hand = append(hand[:i], hand[i+1:]...)
-			break
-		}
-	}
-	return hand
+func BringToHand(hand map[int]*CardItem, card CardItem) {
+	hand[card.ID] = &card
+}
+
+func RemoveFromHand(hand map[int]*CardItem, id int) {
+	delete(hand, id)
 }

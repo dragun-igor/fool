@@ -14,32 +14,48 @@ type WebSocketConnection struct {
 }
 
 type WsJsonResponse struct {
-	Action         string    `json:"action"`
-	Message        string    `json:"message"'`
-	Hand           game.Hand `json:"hand"`
-	Table          game.Hand `json:"table"`
-	Deck           bool      `json:"deck"`
-	Trash          bool      `json:"trash"`
-	ConnectedUsers []string  `json:"connected_users"`
+	Action         string          `json:"action"`
+	Message        string          `json:"message"`
+	Hand           []game.CardItem `json:"hand"`
+	Table          game.Table      `json:"table"`
+	Deck           bool            `json:"deck"`
+	Trash          bool            `json:"trash"`
+	ConnectedUsers []string        `json:"connected_users"`
 }
 
 type WsPayload struct {
 	Action   string              `json:"action"`
 	Username string              `json:"username"`
 	Message  string              `json:"message"`
+	ID       int                 `json:"id"`
 	Card     game.CardItem       `json:"card"`
 	Conn     WebSocketConnection `json:"-"`
 }
 
 type ClientData struct {
-	Username string
-	Hand     game.Hand
-	Table    game.Hand
+	Username     string
+	Hand         map[int]*game.CardItem
+	SelectedCard int
+}
+
+var sortMap = map[string]int{
+	"six":   1,
+	"seven": 2,
+	"eight": 3,
+	"nine":  4,
+	"ten":   5,
+	"jack":  6,
+	"queen": 7,
+	"king":  8,
+	"ace":   9,
 }
 
 var (
-	clients           = make(map[WebSocketConnection]*ClientData)
-	wsChan            = make(chan WsPayload)
+	clients = make(map[WebSocketConnection]*ClientData, 6)
+	wsChan  = make(chan WsPayload)
+	table   = game.Table{
+		Pairs: make([]game.Pair, 0, 6),
+	}
 	upgradeConnection = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -55,9 +71,9 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	conn := WebSocketConnection{ws}
 	hand := &ClientData{
-		Username: "",
-		Hand:     make(game.Hand, 0, 36),
-		Table:    make(game.Hand, 0, 12),
+		Username:     "",
+		Hand:         make(map[int]*game.CardItem, 36),
+		SelectedCard: 0,
 	}
 	clients[conn] = hand
 
@@ -86,9 +102,7 @@ func ListenForWs(conn *WebSocketConnection) {
 
 func ListenToWsChannel() {
 	deck := game.NewDeck()
-	response := WsJsonResponse{
-		Deck: true,
-	}
+	response := WsJsonResponse{}
 	for {
 		e := <-wsChan
 		switch e.Action {
@@ -98,7 +112,6 @@ func ListenToWsChannel() {
 		case "add_user":
 			clients[e.Conn].Username = e.Username
 			response = getUserList(response)
-			fmt.Println(response)
 			broadcastToAll(response)
 		case "delete_user":
 			delete(clients, e.Conn)
@@ -108,32 +121,98 @@ func ListenToWsChannel() {
 			response.Action = "hand"
 			for client := range clients {
 				hand := clients[client].Hand
-				for n := 6 - len(hand); n > 0; n-- {
+				for i := 0; i < 6; i++ {
 					if deck.Length != 0 {
-						hand = game.BringToHand(hand, deck.Get())
+						card := deck.Get()
+						hand[card.ID] = &card
 					} else {
 						break
 					}
 				}
-				fmt.Println(hand)
-				fmt.Println(client)
-				clients[client].Hand = hand
-				response.Hand = hand
+				handSlice := make([]game.CardItem, 0, len(hand))
+				for _, v := range hand {
+					handSlice = append(handSlice, *v)
+				}
+				response.Hand = handSlice
+				sort.Slice(handSlice, func(i, j int) bool {
+					if handSlice[i].Suit < handSlice[j].Suit {
+						return true
+					}
+					if handSlice[i].Suit > handSlice[j].Suit {
+						return false
+					}
+					if sortMap[handSlice[i].Denomination] < sortMap[handSlice[j].Denomination] {
+						return true
+					}
+					return false
+				})
 				broadcastToClient(client, response)
 			}
-		case "card_selected":
+		case "select_card":
 			response.Action = "hand"
-			for i := range clients[e.Conn].Hand {
-				if clients[e.Conn].Hand[i].Denomination == e.Card.Denomination && clients[e.Conn].Hand[i].Suit == e.Card.Suit {
-					clients[e.Conn].Hand[i] = e.Card
-				}
+			client := clients[e.Conn]
+			if client.SelectedCard > 0 {
+				client.Hand[client.SelectedCard].Selected = false
 			}
+			if e.ID != client.SelectedCard {
+				client.Hand[e.ID].Selected = true
+				client.SelectedCard = e.ID
+			} else {
+				client.SelectedCard = 0
+			}
+			handSlice := make([]game.CardItem, 0, len(client.Hand))
+			for _, v := range client.Hand {
+				handSlice = append(handSlice, *v)
+			}
+			response.Hand = handSlice
+			sort.Slice(handSlice, func(i, j int) bool {
+				if handSlice[i].Suit < handSlice[j].Suit {
+					return true
+				}
+				if handSlice[i].Suit > handSlice[j].Suit {
+					return false
+				}
+				if sortMap[handSlice[i].Denomination] < sortMap[handSlice[j].Denomination] {
+					return true
+				}
+				return false
+			})
 			broadcastToClient(e.Conn, response)
-
-		case "broadcast":
-			response.Action = "broadcast"
-			response.Message = fmt.Sprintf("<strong>%s</strong>: %s", e.Username, e.Message)
-			broadcastToAll(response)
+		case "put_on_table":
+			response.Action = "table"
+			client := clients[e.Conn]
+			if client.SelectedCard <= 0 {
+				break
+			}
+			table.PutCard(*client.Hand[client.SelectedCard])
+			response.Table = table
+			fmt.Println(table)
+			fmt.Println(response.Table)
+			broadcastToClient(e.Conn, response)
+		case "remove_card":
+			response.Action = "hand"
+			client := clients[e.Conn]
+			delete(client.Hand, client.SelectedCard)
+			handSlice := make([]game.CardItem, 0, len(client.Hand))
+			for _, v := range client.Hand {
+				handSlice = append(handSlice, *v)
+			}
+			response.Hand = handSlice
+			sort.Slice(handSlice, func(i, j int) bool {
+				if handSlice[i].Suit < handSlice[j].Suit {
+					return true
+				}
+				if handSlice[i].Suit > handSlice[j].Suit {
+					return false
+				}
+				if sortMap[handSlice[i].Denomination] < sortMap[handSlice[j].Denomination] {
+					return true
+				}
+				return false
+			})
+			response.Hand = handSlice
+			client.SelectedCard = 0
+			broadcastToClient(e.Conn, response)
 		}
 	}
 }
