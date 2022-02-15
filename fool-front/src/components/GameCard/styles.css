@@ -1,0 +1,15 @@
+.game-card {
+    padding: 10px;
+    margin: 10px 10px 10px 10px;
+    border: 1px solid #000;
+    width: 150px;
+    height: 120px;
+}
+
+.game-card.trump-suit {
+    border: 1px solid red;
+}
+
+.game-card.selected {
+    background-color: #0d8ddc;
+}
