@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"time"
 )
@@ -172,27 +173,43 @@ func (t *Table) Clear() {
 	t.Covered = 0
 }
 
-//SelectCard changes card state
-func (t *Table) SelectCard(id int, hand Hand) (Hand, error) {
-	if id == hand.SelectedCardID {
-		//do nothing
-	} else {
-		hand.SelectedCardID = 0
-		return hand, nil
-	}
+func selectOff(hand Hand) (Hand, error) {
 	if card, ok := hand.Hand[hand.SelectedCardID]; !ok {
 		return hand, fmt.Errorf("selected card not in hand")
 	} else {
 		card.Selected = false
 		hand.Hand[hand.SelectedCardID] = card
 		hand.SelectedCardID = 0
+		return hand, nil
 	}
+}
+
+func selectOn(id int, hand Hand) (Hand, error) {
 	if card, ok := hand.Hand[id]; !ok {
 		return hand, fmt.Errorf("selected card not in hand")
 	} else {
 		card.Selected = true
 		hand.Hand[id] = card
 		hand.SelectedCardID = id
+		return hand, nil
+	}
+}
+
+//SelectCard changes card state
+func (t *Table) SelectCard(id int, hand Hand) (Hand, error) {
+	var err error
+	if hand.SelectedCardID != 0 {
+		if hand.SelectedCardID != id {
+			hand, err = selectOff(hand)
+			hand, err = selectOn(id, hand)
+		} else {
+			hand, err = selectOff(hand)
+		}
+	} else {
+		hand, err = selectOn(id, hand)
+	}
+	if err != nil {
+		log.Println(err)
 	}
 	t.SelectedCardCanCover(hand)
 	return hand, nil
@@ -207,12 +224,13 @@ func (t *Table) SelectedCardCanCover(hand Hand) {
 		if !t.Pairs[i].Covered {
 			// do nothing
 		} else {
-			firstCardPair.Selected = false
+			t.Pairs[i].FirstCard.Selected = false
 			continue
 		}
 
 		if card.TrumpSuit && !firstCardPair.TrumpSuit {
 			t.Pairs[i].FirstCard.Selected = true
+			continue
 		}
 
 		if card.TrumpSuit &&
@@ -220,17 +238,47 @@ func (t *Table) SelectedCardCanCover(hand Hand) {
 			denominationWeight[card.Denomination] > denominationWeight[firstCardPair.Denomination] {
 
 			t.Pairs[i].FirstCard.Selected = true
+			continue
 		}
 
 		if card.Suit == firstCardPair.Suit &&
 			denominationWeight[card.Denomination] > denominationWeight[firstCardPair.Denomination] {
 
 			t.Pairs[i].FirstCard.Selected = true
+			continue
 		}
 
 		t.Pairs[i].FirstCard.Selected = false
 	}
 }
+
+//func (t Table) HelperCardCanPut(hand Hand) (Hand, error) {
+//	den := make([]string, 0, 6)
+//	for i := range t.Pairs {
+//		den = append(den, t.Pairs[i].FirstCard.Denomination)
+//		if !t.Pairs[i].Covered {
+//			// do nothing
+//		} else {
+//			den = append(den, t.Pairs[i].SecondCard.Denomination)
+//		}
+//	}
+//	var temp bool
+//	for key := range hand.Hand {
+//		temp = false
+//		for i := range den {
+//			if den[i] == hand.Hand[key].Denomination {
+//				temp = true
+//			}
+//		}
+//		if card, ok := hand.Hand[key]; !ok {
+//			// do nothing
+//		} else {
+//			card.Help = temp
+//			hand.Hand[key] = card
+//		}
+//	}
+//	return hand, nil
+//}
 
 //SelectedCardCanCoverClear clears helper
 func (t Table) SelectedCardCanCoverClear() {

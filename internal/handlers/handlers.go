@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"time"
 )
 
 type WebSocketConnection struct {
@@ -127,10 +128,21 @@ func ListenToWsChannel() {
 				broadcastToClient(conn, response)
 			}
 		case "select_card":
-			response.Action = "hand"
 			client := clients[e.Conn]
 			client.HandData, err = table.SelectCard(e.ID, client.HandData)
+			if err != nil {
+				log.Println(err)
+			}
+			//client.HandData, err = table.HelperCardCanPut(client.HandData)
 			response.Hand = handMapToSortedSlice(client.HandData.Hand)
+			response.Table = *table
+
+			response.Action = "hand"
+			broadcastToClient(e.Conn, response)
+
+			time.Sleep(10 * time.Millisecond)
+
+			response.Action = "table"
 			broadcastToClient(e.Conn, response)
 		case "put_on_table":
 			client := clients[e.Conn]
@@ -138,14 +150,17 @@ func ListenToWsChannel() {
 			if err != nil {
 				log.Println(err)
 			}
+			//client.HandData, err = table.HelperCardCanPut(client.HandData)
 			response.Hand = handMapToSortedSlice(client.HandData.Hand)
 			response.Table = *table
 
-			response.Action = "hand"
-			broadcastToClient(e.Conn, response)
-
 			response.Action = "table"
 			broadcastToAll(response)
+
+			time.Sleep(10 * time.Millisecond)
+
+			response.Action = "hand"
+			broadcastToClient(e.Conn, response)
 		}
 	}
 }
@@ -166,7 +181,7 @@ func handMapToSortedSlice(hand map[int]game.CardItem) []game.CardItem {
 			return true
 		}
 		if res[i].Suit > res[j].Suit {
-			return true
+			return false
 		}
 		if sortMap[res[i].Denomination] < sortMap[res[j].Denomination] {
 			return true
