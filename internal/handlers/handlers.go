@@ -203,16 +203,3 @@ func broadcastToAll(response WsJsonResponse) {
 		broadcastToClient(client, response)
 	}
 }
-
-func renderPage(w http.ResponseWriter, r *http.Request, page string) error {
-	http.ServeFile(w, r, page)
-	return nil
-}
-
-// Home renders the home page
-func Home(w http.ResponseWriter, r *http.Request) {
-	err := renderPage(w, r, "./html/home.html")
-	if err != nil {
-		log.Println(err)
-	}
-}
