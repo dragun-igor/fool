@@ -252,33 +252,33 @@ func (t *Table) SelectedCardCanCover(hand Hand) {
 	}
 }
 
-//func (t Table) HelperCardCanPut(hand Hand) (Hand, error) {
-//	den := make([]string, 0, 6)
-//	for i := range t.Pairs {
-//		den = append(den, t.Pairs[i].FirstCard.Denomination)
-//		if !t.Pairs[i].Covered {
-//			// do nothing
-//		} else {
-//			den = append(den, t.Pairs[i].SecondCard.Denomination)
-//		}
-//	}
-//	var temp bool
-//	for key := range hand.Hand {
-//		temp = false
-//		for i := range den {
-//			if den[i] == hand.Hand[key].Denomination {
-//				temp = true
-//			}
-//		}
-//		if card, ok := hand.Hand[key]; !ok {
-//			// do nothing
-//		} else {
-//			card.Help = temp
-//			hand.Hand[key] = card
-//		}
-//	}
-//	return hand, nil
-//}
+func (t Table) HelperCardCanPut(hand Hand) (Hand, error) {
+	den := make([]string, 0, 6)
+	for i := range t.Pairs {
+		den = append(den, t.Pairs[i].FirstCard.Denomination)
+		if !t.Pairs[i].Covered {
+			// do nothing
+		} else {
+			den = append(den, t.Pairs[i].SecondCard.Denomination)
+		}
+	}
+	var temp bool
+	for key := range hand.Hand {
+		temp = false
+		for i := range den {
+			if den[i] == hand.Hand[key].Denomination {
+				temp = true
+			}
+		}
+		if card, ok := hand.Hand[key]; !ok {
+			// do nothing
+		} else {
+			card.Help = temp
+			hand.Hand[key] = card
+		}
+	}
+	return hand, nil
+}
 
 //SelectedCardCanCoverClear clears helper
 func (t Table) SelectedCardCanCoverClear() {
