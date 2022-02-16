@@ -14,6 +14,10 @@ export const GameCard = (props) => {
         className += " selected"
     }
 
+    if (!card.selected && card.help) {
+        className += " helped"
+    }
+
     return (
         <div className={className} onClick={() => onClick(card.id)}>
             <h1>{card.denomination}</h1>

@@ -4,7 +4,7 @@ import { GameCard } from '../GameCard'
 import {Row, Col} from "antd";
 
 export const Table = (props) => {
-    const { pairs, onClick } = props
+    const { pairs, onClick, onClickCard } = props
     let className = 'table'
     console.log(pairs)
 
@@ -23,6 +23,7 @@ export const Table = (props) => {
                             <Col>
                                 <GameCard
                                     card={pair.first_card}
+                                    onClick={() => onClickCard(pair.id)}
                                 />
                                 <GameCard
                                     card={pair.second_card}

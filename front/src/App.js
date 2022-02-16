@@ -7,9 +7,6 @@ const socket = new WebSocket('ws://127.0.0.1:8080/ws')
 
 function App() {
     const [disabled, setDisabled] = useState(false)
-    const toggle = () => {
-        setDisabled(!disabled)
-    }
     const [inputUsernameField, setInputUsernameField] = useState('')
     const UsernameField = Input
 
@@ -18,6 +15,10 @@ function App() {
         table: [],
         hand: []
     })
+
+    const toggle = () => {
+        setDisabled(!disabled)
+    }
 
     const changeTable = (pairs) => {
         setState({
@@ -64,6 +65,13 @@ function App() {
     const onClickTable = () => {
         let jsonData = {}
         jsonData.action = "put_on_table"
+        socket.send(JSON.stringify(jsonData))
+    }
+
+    const onClickTableCard = (id) => {
+        let jsonData = {}
+        jsonData.action = "cover_card"
+        jsonData.id = id
         socket.send(JSON.stringify(jsonData))
     }
 
@@ -123,6 +131,7 @@ function App() {
           <Table
               pairs={state.table}
               onClick={onClickTable}
+              onClickCard={onClickTableCard}
           />
       </div>
   )

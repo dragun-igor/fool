@@ -118,22 +118,31 @@ func ListenToWsChannel() {
 		case "start_game":
 			deck, table = game.StartNewGame()
 			response.Action = "hand"
+			var temp bool
 			for conn := range clients {
 				client := clients[conn]
 				client.HandData, err = deck.GetHand()
+				if !temp {
+					client.HandData.Defend = true
+					temp = true
+				}
 				if err != nil {
 					log.Println(err)
 				}
 				response.Hand = handMapToSortedSlice(client.HandData.Hand)
 				broadcastToClient(conn, response)
+				fmt.Println(client.HandData)
 			}
+
 		case "select_card":
 			client := clients[e.Conn]
 			client.HandData, err = table.SelectCard(e.ID, client.HandData)
 			if err != nil {
 				log.Println(err)
 			}
-			//client.HandData, err = table.HelperCardCanPut(client.HandData)
+			if !client.HandData.Defend {
+				client.HandData, err = table.HelperCardCanPut(client.HandData)
+			}
 			response.Hand = handMapToSortedSlice(client.HandData.Hand)
 			response.Table = *table
 
@@ -144,13 +153,43 @@ func ListenToWsChannel() {
 
 			response.Action = "table"
 			broadcastToClient(e.Conn, response)
+			table.SelectedCardCanCoverClear()
 		case "put_on_table":
 			client := clients[e.Conn]
+			if !client.HandData.Defend {
+				// do nothing
+			} else {
+				break
+			}
 			client.HandData, err = table.PutCardOnTable(client.HandData)
+			table.SelectedCardCanCoverClear()
 			if err != nil {
 				log.Println(err)
 			}
-			//client.HandData, err = table.HelperCardCanPut(client.HandData)
+			client.HandData, err = table.HelperCardCanPut(client.HandData)
+			response.Hand = handMapToSortedSlice(client.HandData.Hand)
+			response.Table = *table
+
+			response.Action = "table"
+			broadcastToAll(response)
+
+			time.Sleep(10 * time.Millisecond)
+
+			response.Action = "hand"
+			broadcastToClient(e.Conn, response)
+		case "cover_card":
+			client := clients[e.Conn]
+			if !client.HandData.Defend {
+				break
+			}
+			client.HandData, err = table.CoverCardOnTable(e.ID, client.HandData)
+			if err == fmt.Errorf("ne kroet") {
+				break
+			}
+			table.SelectedCardCanCoverClear()
+			if err != nil {
+				log.Println(err)
+			}
 			response.Hand = handMapToSortedSlice(client.HandData.Hand)
 			response.Table = *table
 

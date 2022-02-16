@@ -13,3 +13,7 @@
 .game-card.selected {
     background-color: #0d8ddc;
 }
+
+.game-card.helped {
+    background-color: #1e7e34;
+}

@@ -138,21 +138,38 @@ func (t *Table) PutCardOnTable(hand Hand) (Hand, error) {
 	if card, ok := hand.Hand[hand.SelectedCardID]; !ok {
 		return hand, fmt.Errorf("selected card isn't in hand")
 	} else {
-		card.Selected = false
-		id := len(t.Pairs) + 1
-		t.Pairs = append(t.Pairs, Pair{
-			ID:        id,
-			FirstCard: card,
-		})
-		t.Putted++
-		delete(hand.Hand, hand.SelectedCardID)
-		hand.SelectedCardID = 0
+		if ok := t.CheckPutCard(card); !ok {
+			// do nothing
+		} else {
+			card.Selected = false
+			id := len(t.Pairs) + 1
+			t.Pairs = append(t.Pairs, Pair{
+				ID:        id,
+				FirstCard: card,
+			})
+			t.Putted++
+			delete(hand.Hand, hand.SelectedCardID)
+			hand.SelectedCardID = 0
+		}
 	}
 	return hand, nil
 }
 
-func (t *Table) CoverCardOnTable(hand Hand) {
-	// implement me, please
+func (t *Table) CoverCardOnTable(id int, hand Hand) (Hand, error) {
+	card, ok := hand.Hand[hand.SelectedCardID]
+	if !ok {
+		return hand, fmt.Errorf("error")
+	}
+	if ok := t.CheckCoverCard(id, card); !ok {
+		return hand, fmt.Errorf("ne kroet")
+	}
+	delete(hand.Hand, hand.SelectedCardID)
+	card.Selected = false
+	hand.SelectedCardID = 0
+	t.Pairs[id-1].SecondCard = card
+	t.Pairs[id-1].Covered = true
+	t.Covered++
+	return hand, nil
 }
 
 func (t *Table) BringCardsToHand(hand map[int]CardItem) {
@@ -211,7 +228,11 @@ func (t *Table) SelectCard(id int, hand Hand) (Hand, error) {
 	if err != nil {
 		log.Println(err)
 	}
-	t.SelectedCardCanCover(hand)
+	if !hand.Defend {
+		// do nothing
+	} else {
+		t.SelectedCardCanCover(hand)
+	}
 	return hand, nil
 }
 
@@ -281,8 +302,56 @@ func (t Table) HelperCardCanPut(hand Hand) (Hand, error) {
 }
 
 //SelectedCardCanCoverClear clears helper
-func (t Table) SelectedCardCanCoverClear() {
+func (t *Table) SelectedCardCanCoverClear() {
 	for i := range t.Pairs {
 		t.Pairs[i].FirstCard.Selected = false
+		t.Pairs[i].FirstCard.Help = false
+		if !t.Pairs[i].Covered {
+			// do nothing
+		} else {
+			t.Pairs[i].SecondCard.Selected = false
+			t.Pairs[i].SecondCard.Help = false
+		}
 	}
+}
+
+func (t Table) CheckPutCard(card CardItem) bool {
+	if len(t.Pairs) == 0 {
+		return true
+	}
+	denomination := card.Denomination
+	for i := range t.Pairs {
+		if t.Pairs[i].FirstCard.Denomination == denomination ||
+			t.Pairs[i].SecondCard.Denomination == denomination {
+
+			return true
+		}
+	}
+	return false
+}
+
+func (t Table) CheckCoverCard(id int, secondCard CardItem) bool {
+	pair := t.Pairs[id-1]
+	if !pair.Covered {
+		// do nothing
+	} else {
+		return false
+	}
+	if !pair.FirstCard.TrumpSuit && secondCard.TrumpSuit {
+		return true
+	}
+	if pair.FirstCard.TrumpSuit &&
+		secondCard.TrumpSuit &&
+		denominationWeight[pair.FirstCard.Denomination] < denominationWeight[secondCard.Denomination] {
+
+		return true
+	}
+
+	if pair.FirstCard.Suit == secondCard.Suit &&
+		denominationWeight[pair.FirstCard.Denomination] < denominationWeight[secondCard.Denomination] {
+
+		return true
+	}
+
+	return false
 }
